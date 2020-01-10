@@ -183,6 +183,9 @@ class TestQuery(base.TestCase):
         self.assertRaises(hawkey.QueryException, q.filter,
                           provides__gt=requires[0])
 
+        q = hawkey.Query(self.sack).filter(provides="thisisnotgoingtoexist")
+        self.assertLength(q.run(), 0)
+
     def test_reldep_list(self):
         self.sack.load_test_repo("updates", "updates.repo")
         fool = base.by_name_repo(self.sack, "fool", "updates")
@@ -207,6 +210,54 @@ class TestQuery(base.TestCase):
         res = q.filter(name__glob__not="j*").run()
         self.assertItemsEqual(list(map(lambda p: p.name, res)),
                               ['baby', 'dog', 'flying', 'fool', 'gun', 'tour'])
+
+    def test_provides_glob_should_work(self):
+        q1 = hawkey.Query(self.sack).filter(provides__glob="penny*")
+        self.assertLength(q1, 2)
+        q2 = hawkey.Query(self.sack).filter(provides__glob="*")
+        q3 = hawkey.Query(self.sack).filter()
+        self.assertEqual(len(q2), len(q3))
+        q4 = hawkey.Query(self.sack).filter(provides__glob="P-l*b >= 3")
+        self.assertLength(q4, 1)
+
+    def test_provides_glob_should_not_work(self):
+        q = hawkey.Query(self.sack).filter(provides="*")
+        self.assertLength(q, 0)
+        q = hawkey.Query(self.sack).filter(provides__glob="nomatch*")
+        self.assertLength(q, 0)
+
+    def test_provides_list_of_strings(self):
+        q1 = hawkey.Query(self.sack).filter(provides=["penny", "P-lib"])
+        q2 = hawkey.Query(self.sack).filter(provides__glob=["penny", "P-lib"])
+        self.assertEqual(len(q1), len(q2))
+        q3 = hawkey.Query(self.sack).filter(provides__glob=["penny*", "P-lib*"])
+        self.assertEqual(len(q1), len(q3))
+        q4 = hawkey.Query(self.sack).filter(provides__glob=["nomatch*", "P-lib*"])
+        q5 = hawkey.Query(self.sack).filter(provides__glob="P-lib*")
+        self.assertEqual(len(q4), len(q5))
+        q6 = hawkey.Query(self.sack).filter(provides=["nomatch", "P-lib"])
+        q7 = hawkey.Query(self.sack).filter(provides="P-lib")
+        self.assertEqual(len(q6), len(q7))
+        q8 = hawkey.Query(self.sack).filter(provides=[])
+        self.assertLength(q8, 0)
+        q9 = hawkey.Query(self.sack).filter(provides__glob=[])
+        self.assertLength(q9, 0)
+
+    def test_requires_list_of_strings(self):
+        q1 = hawkey.Query(self.sack).filter(requires=["penny", "P-lib"])
+        q2 = hawkey.Query(self.sack).filter(requires__glob=["penny", "P-lib"])
+        self.assertEqual(len(q1), len(q2))
+        q3 = hawkey.Query(self.sack).filter(requires__glob=["penny*", "P-lib*"])
+        self.assertEqual(len(q1), len(q3))
+        q4 = hawkey.Query(self.sack).filter(requires__glob=["nomatch*", "P-lib*"])
+        q5 = hawkey.Query(self.sack).filter(requires__glob="P-lib*")
+        self.assertEqual(len(q4), len(q5))
+        q6 = hawkey.Query(self.sack).filter(requires=["nomatch", "P-lib"])
+        q7 = hawkey.Query(self.sack).filter(requires="P-lib")
+        self.assertEqual(len(q6), len(q7))
+        q1 = hawkey.Query(self.sack).filter(requires__glob=["*bin/away"])
+        self.assertLength(q1, 1)
+
 
 class TestQueryAllRepos(base.TestCase):
     def setUp(self):
@@ -235,6 +286,27 @@ class TestQueryAllRepos(base.TestCase):
         query = hawkey.Query(self.sack).filter(downgradable=True)
         self.assertEqual({str(pkg) for pkg in query},
                          {'baby-6:5.0-11.x86_64', 'jay-5.0-0.x86_64'})
+
+    def test_rco_glob(self):
+        q1 = hawkey.Query(self.sack).filter(requires__glob="*")
+        self.assertLength(q1, 9)
+        q2 = hawkey.Query(self.sack).filter(requires="*")
+        self.assertLength(q2, 0)
+        q3 = hawkey.Query(self.sack).filter(conflicts__glob="cu*")
+        self.assertLength(q3, 3)
+        q1 = hawkey.Query(self.sack).filter(obsoletes__glob="*")
+        self.assertLength(q1, 1)
+        q1 = hawkey.Query(self.sack).filter(recommends__glob="*")
+        self.assertLength(q1, 1)
+        q1 = hawkey.Query(self.sack).filter(enhances__glob="*")
+        self.assertLength(q1, 1)
+        q1 = hawkey.Query(self.sack).filter(suggests__glob="*")
+        self.assertLength(q1, 1)
+        q1 = hawkey.Query(self.sack).filter(supplements__glob="*")
+        self.assertLength(q1, 1)
+        q1 = hawkey.Query(self.sack).filter(requires__glob="*bin/away")
+        self.assertLength(q1, 1)
+
 
 class TestQueryUpdates(base.TestCase):
     def setUp(self):

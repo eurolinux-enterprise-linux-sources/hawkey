@@ -51,6 +51,7 @@ _QUERY_KEYNAME_MAP = {
     'downgradable': _hawkey.PKG_DOWNGRADABLE,
     'downgrades': _hawkey.PKG_DOWNGRADES,
     'empty': _hawkey.PKG_EMPTY,
+    'enhances': _hawkey.PKG_ENHANCES,
     'epoch': _hawkey.PKG_EPOCH,
     'evr': _hawkey.PKG_EVR,
     'file': _hawkey.PKG_FILE,
@@ -61,11 +62,14 @@ _QUERY_KEYNAME_MAP = {
     'nevra': _hawkey.PKG_NEVRA,
     'obsoletes': _hawkey.PKG_OBSOLETES,
     'provides': _hawkey.PKG_PROVIDES,
+    'recommends': _hawkey.PKG_RECOMMENDS,
     'release': _hawkey.PKG_RELEASE,
     'reponame': _hawkey.PKG_REPONAME,
     'requires': _hawkey.PKG_REQUIRES,
     'sourcerpm': _hawkey.PKG_SOURCERPM,
+    'suggests': _hawkey.PKG_SUGGESTS,
     'summary': _hawkey.PKG_SUMMARY,
+    'supplements': _hawkey.PKG_SUPPLEMENTS,
     'upgradable': _hawkey.PKG_UPGRADABLE,
     'upgrades': _hawkey.PKG_UPGRADES,
     'url': _hawkey.PKG_URL,
@@ -145,6 +149,14 @@ chksum_name = _hawkey.chksum_name
 chksum_type = _hawkey.chksum_type
 detect_arch = _hawkey.detect_arch
 
+ERASE = _hawkey.ERASE
+DISTUPGRADE = _hawkey.DISTUPGRADE
+DISTUPGRADE_ALL = _hawkey.DISTUPGRADE_ALL
+DOWNGRADE = _hawkey.DOWNGRADE
+INSTALL = _hawkey.INSTALL
+UPGRADE = _hawkey.UPGRADE
+UPGRADE_ALL = _hawkey.UPGRADE_ALL
+
 
 def split_nevra(s):
     t = _hawkey.split_nevra(s)
@@ -161,6 +173,19 @@ class NEVRA(_hawkey.NEVRA):
 class Goal(_hawkey.Goal):
     _reserved_kw = set(['package', 'select'])
     _flag_kw = set(['clean_deps', 'check_installed'])
+    _goal_actions = {
+        ERASE,
+        DISTUPGRADE,
+        DISTUPGRADE_ALL,
+        DOWNGRADE,
+        INSTALL,
+        UPGRADE,
+        UPGRADE_ALL
+    }
+
+    @property
+    def actions(self):
+        return {f for f in self._goal_actions if self._has_actions(f)}
 
     def _auto_selector(fn):
         def tweaked_fn(self, *args, **kwargs):

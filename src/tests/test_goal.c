@@ -137,6 +137,18 @@ START_TEST(test_goal_sanity)
 }
 END_TEST
 
+START_TEST(test_goal_actions)
+{
+    HyPackage pkg = get_latest_pkg(test_globals.sack, "walrus");
+    HyGoal goal = hy_goal_create(test_globals.sack);
+    fail_if(hy_goal_has_actions(goal, HY_INSTALL));
+    fail_if(hy_goal_install(goal, pkg));
+    fail_unless(hy_goal_has_actions(goal, HY_INSTALL));
+    hy_package_free(pkg);
+    hy_goal_free(goal);
+}
+END_TEST
+
 START_TEST(test_goal_update_impossible)
 {
     HyPackage pkg = get_latest_pkg(test_globals.sack, "walrus");
@@ -274,6 +286,25 @@ START_TEST(test_goal_install_selector_nomatch)
     fail_if(hy_goal_run(goal));
     assert_iueo(goal, 0, 0, 0, 0);
     hy_goal_free(goal);
+}
+END_TEST
+
+START_TEST(test_goal_install_weak_deps)
+{
+    HySelector sltr = hy_selector_create(test_globals.sack);
+    hy_selector_set(sltr, HY_PKG_NAME, HY_EQ, "B");
+    HyGoal goal = hy_goal_create(test_globals.sack);
+    fail_if(hy_goal_install_selector(goal, sltr));
+    HyGoal goal2 = hy_goal_clone(goal);
+    fail_if(hy_goal_run(goal));
+    // recommended package C is installed too
+    assert_iueo(goal, 2, 0, 0, 0);
+
+    fail_if(hy_goal_run_flags(goal2, HY_IGNORE_WEAK_DEPS));
+    assert_iueo(goal2, 1, 0, 0, 0);
+    hy_goal_free(goal);
+    hy_goal_free(goal2);
+    hy_selector_free(sltr);
 }
 END_TEST
 
@@ -1183,6 +1214,26 @@ START_TEST(test_goal_change)
 }
 END_TEST
 
+START_TEST(test_goal_clone)
+{
+    HySack sack = test_globals.sack;
+    HyGoal goal = hy_goal_create(sack);
+
+    hy_goal_upgrade_all(goal);
+    HyGoal goal2 = hy_goal_clone(goal);
+
+    fail_if(hy_goal_run(goal));
+    assert_iueo(goal, 0, 1, 0, 0);
+    fail_unless(size_and_free(hy_goal_list_reinstalls(goal)) == 1);
+    hy_goal_free(goal);
+
+    fail_if(hy_goal_run(goal2));
+    assert_iueo(goal2, 0, 1, 0, 0);
+    fail_unless(size_and_free(hy_goal_list_reinstalls(goal2)) == 1);
+    hy_goal_free(goal2);
+}
+END_TEST
+
 START_TEST(test_cmdline_file_provides)
 {
     HySack sack = test_globals.sack;
@@ -1203,6 +1254,7 @@ goal_suite(void)
 
     tc = tcase_create("Core");
     tcase_add_unchecked_fixture(tc, fixture_all, teardown);
+    tcase_add_test(tc, test_goal_actions);
     tcase_add_test(tc, test_goal_sanity);
     tcase_add_test(tc, test_goal_update_impossible);
     tcase_add_test(tc, test_goal_list_err);
@@ -1257,6 +1309,7 @@ goal_suite(void)
     tc = tcase_create("Greedy");
     tcase_add_unchecked_fixture(tc, fixture_greedy_only, teardown);
     tcase_add_test(tc, test_goal_run_all);
+    tcase_add_test(tc, test_goal_install_weak_deps);
     suite_add_tcase(s, tc);
 
     tc = tcase_create("Installonly");
@@ -1281,6 +1334,7 @@ goal_suite(void)
     tc = tcase_create("Change");
     tcase_add_unchecked_fixture(tc, fixture_with_change, teardown);
     tcase_add_test(tc, test_goal_change);
+    tcase_add_test(tc, test_goal_clone);
     suite_add_tcase(s, tc);
 
     tc = tcase_create("Cmdline");

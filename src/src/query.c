@@ -65,9 +65,13 @@ static int
 match_type_reldep(int keyname) {
     switch (keyname) {
     case HY_PKG_CONFLICTS:
+    case HY_PKG_ENHANCES:
     case HY_PKG_OBSOLETES:
     case HY_PKG_PROVIDES:
+    case HY_PKG_RECOMMENDS:
     case HY_PKG_REQUIRES:
+    case HY_PKG_SUGGESTS:
+    case HY_PKG_SUPPLEMENTS:
 	return 1;
     default:
 	return 0;
@@ -79,17 +83,23 @@ match_type_str(int keyname) {
     switch (keyname) {
     case HY_PKG_ARCH:
     case HY_PKG_DESCRIPTION:
+    case HY_PKG_ENHANCES:
     case HY_PKG_EVR:
     case HY_PKG_FILE:
     case HY_PKG_LOCATION:
     case HY_PKG_NAME:
     case HY_PKG_NEVRA:
     case HY_PKG_PROVIDES:
+    case HY_PKG_RECOMMENDS:
     case HY_PKG_RELEASE:
     case HY_PKG_REPONAME:
     case HY_PKG_REQUIRES:
     case HY_PKG_SOURCERPM:
+    case HY_PKG_SUGGESTS:
     case HY_PKG_SUMMARY:
+    case HY_PKG_SUPPLEMENTS:
+    case HY_PKG_OBSOLETES:
+    case HY_PKG_CONFLICTS:
     case HY_PKG_URL:
     case HY_PKG_VERSION:
 	return 1;
@@ -129,10 +139,18 @@ reldep_keyname2id(int keyname)
     switch(keyname) {
     case HY_PKG_CONFLICTS:
 	return SOLVABLE_CONFLICTS;
+    case HY_PKG_ENHANCES:
+        return SOLVABLE_ENHANCES;
     case HY_PKG_OBSOLETES:
 	return SOLVABLE_OBSOLETES;
     case HY_PKG_REQUIRES:
 	return SOLVABLE_REQUIRES;
+    case HY_PKG_RECOMMENDS:
+        return SOLVABLE_RECOMMENDS;
+    case HY_PKG_SUGGESTS:
+        return SOLVABLE_SUGGESTS;
+    case HY_PKG_SUPPLEMENTS:
+        return SOLVABLE_SUPPLEMENTS;
     default:
 	assert(0);
 	return 0;
@@ -316,6 +334,8 @@ filter_epoch(HyQuery q, struct _Filter *f, Map *m)
 	unsigned long epoch = f->matches[mi].num;
 
 	for (Id id = 1; id < pool->nsolvables; ++id) {
+            if (!MAPTST(q->result, id))
+                continue;
 	    Solvable *s = pool_id2solvable(pool, id);
 	    if (s->evr == ID_EMPTY)
 		continue;
@@ -341,6 +361,8 @@ filter_evr(HyQuery q, struct _Filter *f, Map *m)
 	Id match_evr = pool_str2id(pool, f->matches[mi].str, 1);
 
 	for (Id id = 1; id < pool->nsolvables; ++id) {
+            if (!MAPTST(q->result, id))
+                continue;
 	    Solvable *s = pool_id2solvable(pool, id);
 	    int cmp = pool_evrcmp(pool, s->evr, match_evr, EVRCMP_COMPARE);
 
@@ -363,6 +385,8 @@ filter_version(HyQuery q, struct _Filter *f, Map *m)
 	char *filter_vr = solv_dupjoin(match, "-0", NULL);
 
 	for (Id id = 1; id < pool->nsolvables; ++id) {
+            if (!MAPTST(q->result, id))
+                continue;
 	    char *e, *v, *r;
 	    Solvable *s = pool_id2solvable(pool, id);
 	    if (s->evr == ID_EMPTY)
@@ -397,6 +421,8 @@ filter_release(HyQuery q, struct _Filter *f, Map *m)
 	char *filter_vr = solv_dupjoin("0-", f->matches[mi].str, NULL);
 
 	for (Id id = 1; id < pool->nsolvables; ++id) {
+            if (!MAPTST(q->result, id))
+                continue;
 	    char *e, *v, *r;
 	    Solvable *s = pool_id2solvable(pool, id);
 	    if (s->evr == ID_EMPTY)
@@ -426,6 +452,8 @@ filter_sourcerpm(HyQuery q, struct _Filter *f, Map *m)
 	const char *match = f->matches[mi].str;
 
 	for (Id id = 1; id < pool->nsolvables; ++id) {
+            if (!MAPTST(q->result, id))
+                continue;
 	    Solvable *s = pool_id2solvable(pool, id);
 
 	    const char *name = solvable_lookup_str(s, SOLVABLE_SOURCENAME);
@@ -456,6 +484,8 @@ filter_obsoletes(HyQuery q, struct _Filter *f, Map *m)
     target = packageset_get_map(f->matches[0].pset);
     sack_make_provides_ready(q->sack);
     for (Id p = 1; p < pool->nsolvables; ++p) {
+        if (!MAPTST(q->result, p))
+            continue;
 	Solvable *s = pool_id2solvable(pool, p);
 	if (!s->repo)
 	    continue;
@@ -504,6 +534,9 @@ filter_rco_reldep(HyQuery q, struct _Filter *f, Map *m)
 	Id r_id = reldep_id(f->matches[i].reldep);
 
 	for (Id s_id = 1; s_id < pool->nsolvables; ++s_id) {
+            if (!MAPTST(q->result, s_id))
+                continue;
+
 	    Solvable *s = pool_id2solvable(pool, s_id);
 
 	    queue_empty(&rco);
@@ -542,6 +575,8 @@ filter_reponame(HyQuery q, struct _Filter *f, Map *m)
     }
 
     for (i = 1; i < pool->nsolvables; ++i) {
+        if (!MAPTST(q->result, i))
+            continue;
 	s = pool_id2solvable(pool, i);
 	switch (f->cmp_type & ~HY_COMPARISON_FLAG_MASK) {
 	case HY_EQ:
@@ -563,6 +598,8 @@ filter_location(HyQuery q, struct _Filter *f, Map *m)
 	const char *match = f->matches[mi].str;
 
 	for (Id id = 1; id < pool->nsolvables; ++id) {
+            if (!MAPTST(q->result, id))
+                continue;
 	    Solvable *s = pool_id2solvable(pool, id);
 
 	    const char *location = solvable_get_location(s, NULL);
@@ -582,6 +619,8 @@ filter_nevra(HyQuery q, struct _Filter *f, Map *m)
     char *nevra_pattern = f->matches[0].str;
 
     for (Id id = 1; id < pool->nsolvables; ++id) {
+        if (!MAPTST(q->result, id))
+            continue;
 	Solvable* s = pool_id2solvable(pool, id);
 	const char* nevra = pool_solvable2str(pool, s);
 	if (!(HY_GLOB & f->cmp_type)) {
@@ -820,7 +859,11 @@ hy_query_apply(HyQuery q)
 	    assert(f->match_type == _HY_RELDEP);
 	    filter_provides_reldep(q, f, &m);
 	    break;
-	case HY_PKG_REQUIRES:
+        case HY_PKG_ENHANCES:
+        case HY_PKG_RECOMMENDS:
+        case HY_PKG_REQUIRES:
+        case HY_PKG_SUGGESTS:
+        case HY_PKG_SUPPLEMENTS:
 	    assert(f->match_type == _HY_RELDEP);
 	    filter_rco_reldep(q, f, &m);
 	    break;
@@ -950,17 +993,28 @@ hy_query_filter(HyQuery q, int keyname, int cmp_type, const char *match)
 
     switch (keyname) {
     case HY_PKG_CONFLICTS:
+    case HY_PKG_ENHANCES:
     case HY_PKG_OBSOLETES:
     case HY_PKG_PROVIDES:
-    case HY_PKG_REQUIRES: {
+    case HY_PKG_RECOMMENDS:
+    case HY_PKG_REQUIRES:
+    case HY_PKG_SUGGESTS:
+    case HY_PKG_SUPPLEMENTS: {
 	HySack sack = query_sack(q);
-	HyReldep reldep = reldep_from_str(sack, match);
 
-	if (reldep == NULL)
-	    return HY_E_QUERY;
-	int ret = hy_query_filter_reldep(q, keyname, reldep);
-	hy_reldep_free(reldep);
-	return ret;
+    if (cmp_type == HY_GLOB) {
+        HyReldepList reldeplist = reldeplist_from_str(sack, match);
+        hy_query_filter_reldep_in(q, keyname, reldeplist);
+        hy_reldeplist_free(reldeplist);
+        return 0;
+    } else {
+        HyReldep reldep = reldep_from_str(sack, match);
+        if (reldep == NULL)
+            return hy_query_filter_empty(q);
+        int ret = hy_query_filter_reldep(q, keyname, reldep);
+        hy_reldep_free(reldep);
+        return ret;
+    }
     }
     default: {
 	struct _Filter *filterp = query_add_filter(q, 1);

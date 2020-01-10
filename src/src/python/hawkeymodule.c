@@ -243,6 +243,7 @@ PYCOMP_MOD_INIT(_hawkey)
     PyModule_AddIntConstant(m, "PKG_DOWNGRADABLE", HY_PKG_DOWNGRADABLE);
     PyModule_AddIntConstant(m, "PKG_DOWNGRADES", HY_PKG_DOWNGRADES);
     PyModule_AddIntConstant(m, "PKG_EMPTY", HY_PKG_EMPTY);
+    PyModule_AddIntConstant(m, "PKG_ENHANCES", HY_PKG_ENHANCES);
     PyModule_AddIntConstant(m, "PKG_EPOCH", HY_PKG_EPOCH);
     PyModule_AddIntConstant(m, "PKG_EVR", HY_PKG_EVR);
     PyModule_AddIntConstant(m, "PKG_FILE", HY_PKG_FILE);
@@ -253,16 +254,27 @@ PYCOMP_MOD_INIT(_hawkey)
     PyModule_AddIntConstant(m, "PKG_NEVRA", HY_PKG_NEVRA);
     PyModule_AddIntConstant(m, "PKG_OBSOLETES", HY_PKG_OBSOLETES);
     PyModule_AddIntConstant(m, "PKG_PROVIDES", HY_PKG_PROVIDES);
+    PyModule_AddIntConstant(m, "PKG_RECOMMENDS", HY_PKG_RECOMMENDS);
     PyModule_AddIntConstant(m, "PKG_RELEASE", HY_PKG_RELEASE);
     PyModule_AddIntConstant(m, "PKG_REPONAME", HY_PKG_REPONAME);
     PyModule_AddIntConstant(m, "PKG_REQUIRES", HY_PKG_REQUIRES);
     PyModule_AddIntConstant(m, "PKG_SOURCERPM", HY_PKG_SOURCERPM);
+    PyModule_AddIntConstant(m, "PKG_SUGGESTS", HY_PKG_SUGGESTS);
     PyModule_AddIntConstant(m, "PKG_SUMMARY", HY_PKG_SUMMARY);
+    PyModule_AddIntConstant(m, "PKG_SUPPLEMENTS", HY_PKG_SUPPLEMENTS);
     PyModule_AddIntConstant(m, "PKG_UPGRADABLE", HY_PKG_UPGRADABLE);
     PyModule_AddIntConstant(m, "PKG_UPGRADES", HY_PKG_UPGRADES);
     PyModule_AddIntConstant(m, "PKG_URL", HY_PKG_URL);
     PyModule_AddIntConstant(m, "PKG_VERSION", HY_PKG_VERSION);
 
+    PyModule_AddIntConstant(m, "ERASE", HY_ERASE);
+    PyModule_AddIntConstant(m, "DISTUPGRADE", HY_DISTUPGRADE);
+    PyModule_AddIntConstant(m, "DISTUPGRADE_ALL", HY_DISTUPGRADE_ALL);
+    PyModule_AddIntConstant(m, "DOWNGRADE", HY_DOWNGRADE);
+    PyModule_AddIntConstant(m, "INSTALL", HY_INSTALL);
+    PyModule_AddIntConstant(m, "UPGRADE", HY_UPGRADE);
+    PyModule_AddIntConstant(m, "UPGRADE_ALL", HY_UPGRADE_ALL);
+    
     PyModule_AddIntConstant(m, "CHKSUM_MD5", HY_CHKSUM_MD5);
     PyModule_AddIntConstant(m, "CHKSUM_SHA1", HY_CHKSUM_SHA1);
     PyModule_AddIntConstant(m, "CHKSUM_SHA256", HY_CHKSUM_SHA256);

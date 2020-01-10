@@ -67,7 +67,7 @@ reldeps_for(HyPackage pkg, Id type)
     Queue q;
 
     queue_init(&q);
-    solvable_lookup_idarray(s, type, &q);
+    solvable_lookup_deparray(s, type, &q, -1);
     reldeplist = reldeplist_from_queue(pool, q);
 
     queue_free(&q);
@@ -296,6 +296,12 @@ hy_package_get_evr(HyPackage pkg)
 {
     Pool *pool = package_pool(pkg);
     return pool_id2str(pool, get_solvable(pkg)->evr);
+}
+
+const char *
+hy_package_get_group(HyPackage pkg)
+{
+    return solvable_lookup_str(get_solvable(pkg), SOLVABLE_GROUP);
 }
 
 const char *

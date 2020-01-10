@@ -51,6 +51,7 @@ struct _HyGoal {
     Queue staging;
     Solver *solv;
     Transaction *trans;
+    int actions;
 };
 
 struct _SolutionCallback {
@@ -71,29 +72,6 @@ erase_flags2libsolv(int flags)
     if (flags & HY_CLEAN_DEPS)
 	ret |= SOLVER_CLEANDEPS;
     return ret;
-}
-
-static int
-goal_has(HyGoal goal, Id needle)
-{
-    Id n_select = needle & SOLVER_SELECTMASK;
-    Id n_job = needle & SOLVER_JOBMASK;
-    Queue job = goal->staging;
-
-    // needle contains nothing else but job and select:
-    assert((n_select | n_job) == needle);
-
-    for (int i = 0; i < job.count; i+= 2) {
-	Id what = job.elements[i];
-	if (n_select) {
-	    if (needle == (what & (SOLVER_JOBMASK | SOLVER_SELECTMASK)))
-		return 1;
-	} else {
-	    if (n_job == (what & SOLVER_JOBMASK))
-		return 1;
-	}
-    }
-    return 0;
 }
 
 static void
@@ -269,6 +247,9 @@ solve(HyGoal goal, Queue *job, int flags, hy_solution_callback user_cb,
 	solv->solution_callback = internal_solver_callback;
 	solv->solution_callback_data = &cb_tuple;
     }
+
+    if (HY_IGNORE_WEAK_DEPS & flags)
+        solver_set_flag(solv, SOLVER_FLAG_IGNORE_RECOMMENDED, 1);
 
     if (solver_solve(solv, job))
 	return 1;
@@ -592,6 +573,15 @@ sltr2job(const HySelector sltr, Queue *job, int solver_action)
 // public functions
 
 HyGoal
+hy_goal_clone(HyGoal goal)
+{
+    HyGoal gn = hy_goal_create(goal->sack);
+    queue_init_clone(&gn->staging, &goal->staging);
+    gn->actions = goal->actions;
+    return gn;
+}
+
+HyGoal
 hy_goal_create(HySack sack)
 {
     HyGoal goal = solv_calloc(1, sizeof(*goal));
@@ -614,6 +604,7 @@ hy_goal_free(HyGoal goal)
 int
 hy_goal_distupgrade_all(HyGoal goal)
 {
+    goal->actions |= HY_DISTUPGRADE_ALL;
     queue_push2(&goal->staging, SOLVER_DISTUPGRADE|SOLVER_SOLVABLE_ALL, 0);
     return 0;
 }
@@ -621,6 +612,7 @@ hy_goal_distupgrade_all(HyGoal goal)
 int
 hy_goal_distupgrade(HyGoal goal, HyPackage new_pkg)
 {
+    goal->actions |= HY_DISTUPGRADE;
     queue_push2(&goal->staging, SOLVER_SOLVABLE|SOLVER_DISTUPGRADE,
 	package_id(new_pkg));
     return 0;
@@ -629,18 +621,21 @@ hy_goal_distupgrade(HyGoal goal, HyPackage new_pkg)
 int
 hy_goal_distupgrade_selector(HyGoal goal, HySelector sltr)
 {
+    goal->actions |= HY_DISTUPGRADE;
     return sltr2job(sltr, &goal->staging, SOLVER_DISTUPGRADE);
 }
 
 int
 hy_goal_downgrade_to(HyGoal goal, HyPackage new_pkg)
 {
+    goal->actions |= HY_DOWNGRADE;
     return hy_goal_install(goal, new_pkg);
 }
 
 int
 hy_goal_erase(HyGoal goal, HyPackage pkg)
 {
+    goal->actions |= HY_ERASE;
     return hy_goal_erase_flags(goal, pkg, 0);
 }
 
@@ -653,6 +648,7 @@ hy_goal_erase_flags(HyGoal goal, HyPackage pkg, int flags)
 	   pool_id2solvable(pool, package_id(pkg))->repo == pool->installed);
 #endif
     int additional = erase_flags2libsolv(flags);
+    goal->actions |= HY_ERASE;
     queue_push2(&goal->staging, SOLVER_SOLVABLE|SOLVER_ERASE|additional,
 		package_id(pkg));
     return 0;
@@ -661,6 +657,7 @@ hy_goal_erase_flags(HyGoal goal, HyPackage pkg, int flags)
 int
 hy_goal_erase_selector(HyGoal goal, HySelector sltr)
 {
+    goal->actions |= HY_ERASE;
     return hy_goal_erase_selector_flags(goal, sltr, 0);
 }
 
@@ -668,12 +665,20 @@ int
 hy_goal_erase_selector_flags(HyGoal goal, HySelector sltr, int flags)
 {
     int additional = erase_flags2libsolv(flags);
+    goal->actions |= HY_ERASE;
     return sltr2job(sltr, &goal->staging, SOLVER_ERASE|additional);
+}
+
+int
+hy_goal_has_actions(HyGoal goal, int action)
+{
+    return goal->actions & action;
 }
 
 int
 hy_goal_install(HyGoal goal, HyPackage new_pkg)
 {
+    goal->actions |= HY_INSTALL;
     queue_push2(&goal->staging, SOLVER_SOLVABLE|SOLVER_INSTALL, package_id(new_pkg));
     return 0;
 }
@@ -681,6 +686,7 @@ hy_goal_install(HyGoal goal, HyPackage new_pkg)
 int
 hy_goal_install_optional(HyGoal goal, HyPackage new_pkg)
 {
+    goal->actions |= HY_INSTALL;
     queue_push2(&goal->staging, SOLVER_SOLVABLE|SOLVER_INSTALL|SOLVER_WEAK,
 		package_id(new_pkg));
     return 0;
@@ -689,18 +695,21 @@ hy_goal_install_optional(HyGoal goal, HyPackage new_pkg)
 int
 hy_goal_install_selector(HyGoal goal, HySelector sltr)
 {
+    goal->actions |= HY_INSTALL;
     return sltr2job(sltr, &goal->staging, SOLVER_INSTALL);
 }
 
 int
 hy_goal_install_selector_optional(HyGoal goal, HySelector sltr)
 {
+    goal->actions |= HY_INSTALL;
     return sltr2job(sltr, &goal->staging, SOLVER_INSTALL|SOLVER_WEAK);
 }
 
 int
 hy_goal_upgrade_all(HyGoal goal)
 {
+    goal->actions |= HY_UPGRADE_ALL;
     queue_push2(&goal->staging, SOLVER_UPDATE|SOLVER_SOLVABLE_ALL, 0);
     return 0;
 }
@@ -708,12 +717,14 @@ hy_goal_upgrade_all(HyGoal goal)
 int
 hy_goal_upgrade_to(HyGoal goal, HyPackage new_pkg)
 {
+    goal->actions |= HY_UPGRADE;
     return hy_goal_upgrade_to_flags(goal, new_pkg, 0);
 }
 
 int
 hy_goal_upgrade_to_selector(HyGoal goal, HySelector sltr)
 {
+    goal->actions |= HY_UPGRADE;
     if (sltr->f_evr == NULL)
 	return sltr2job(sltr, &goal->staging, SOLVER_UPDATE);
     return sltr2job(sltr, &goal->staging, SOLVER_INSTALL);
@@ -722,6 +733,7 @@ hy_goal_upgrade_to_selector(HyGoal goal, HySelector sltr)
 int
 hy_goal_upgrade_selector(HyGoal goal, HySelector sltr)
 {
+    goal->actions |= HY_UPGRADE;
     return sltr2job(sltr, &goal->staging, SOLVER_UPDATE);
 }
 
@@ -746,6 +758,7 @@ hy_goal_upgrade_to_flags(HyGoal goal, HyPackage new_pkg, int flags)
 	    return HY_E_VALIDATION;
 	}
     }
+    goal->actions |= HY_UPGRADE;
 
     return hy_goal_install(goal, new_pkg);
 }
@@ -758,22 +771,28 @@ hy_goal_userinstalled(HyGoal goal, HyPackage pkg)
     return 0;
 }
 
+// deprecated in 0.5.9, will be removed in 1.0.0
+// use hy_goal_has_actions(goal, HY_DISTUPGRADE_ALL) instead
 int
 hy_goal_req_has_distupgrade_all(HyGoal goal)
 {
-    return goal_has(goal, SOLVER_DISTUPGRADE|SOLVER_SOLVABLE_ALL);
+    return hy_goal_has_actions(goal, HY_DISTUPGRADE_ALL);
 }
 
+// deprecated in 0.5.9, will be removed in 1.0.0
+// use hy_goal_has_actions(goal, HY_ERASE) instead
 int
 hy_goal_req_has_erase(HyGoal goal)
 {
-    return goal_has(goal, SOLVER_ERASE);
+    return hy_goal_has_actions(goal, HY_ERASE);
 }
 
+// deprecated in 0.5.9, will be removed in 1.0.0
+// use hy_goal_has_actions(goal, HY_UPGRADE_ALL) instead
 int
 hy_goal_req_has_upgrade_all(HyGoal goal)
 {
-    return goal_has(goal, SOLVER_UPDATE|SOLVER_SOLVABLE_ALL);
+    return hy_goal_has_actions(goal, HY_UPGRADE_ALL);
 }
 
 int hy_goal_req_length(HyGoal goal)

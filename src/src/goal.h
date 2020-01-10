@@ -37,13 +37,25 @@ enum _hy_goal_op_flags {
 enum _hy_goal_run_flags {
     HY_ALLOW_UNINSTALL = 1 << 0,
     HY_FORCE_BEST = 1 << 1,
-    HY_VERIFY = 1 << 2
+    HY_VERIFY = 1 << 2,
+    HY_IGNORE_WEAK_DEPS = 1 << 3
+};
+
+enum _hy_goal_actions {
+    HY_ERASE		= 1 << 0,
+    HY_DISTUPGRADE	= 1 << 1,
+    HY_DISTUPGRADE_ALL	= 1 << 2,
+    HY_DOWNGRADE	= 1 << 3,
+    HY_INSTALL		= 1 << 4,
+    HY_UPGRADE		= 1 << 5,
+    HY_UPGRADE_ALL	= 1 << 6,
 };
 
 #define HY_REASON_DEP 1
 #define HY_REASON_USER 2
 
 HyGoal hy_goal_create(HySack sack);
+HyGoal hy_goal_clone(HyGoal goal);
 void hy_goal_free(HyGoal goal);
 
 int hy_goal_distupgrade_all(HyGoal goal);
@@ -72,9 +84,20 @@ int hy_goal_upgrade_to_selector(HyGoal goal, HySelector sltr);
 int hy_goal_userinstalled(HyGoal goal, HyPackage pkg);
 
 /* introspecting the requests */
+int hy_goal_has_actions(HyGoal goal, int action);
+
+// deprecated in 0.5.9, will be removed in 1.0.0
+// use hy_goal_has_actions(goal, HY_DISTUPGRADE_ALL) instead
 int hy_goal_req_has_distupgrade_all(HyGoal goal);
+
+// deprecated in 0.5.9, will be removed in 1.0.0
+// use hy_goal_has_actions(goal, HY_DISTUPGRADE_ALL) instead
 int hy_goal_req_has_erase(HyGoal goal);
+
+// deprecated in 0.5.9, will be removed in 1.0.0
+// use hy_goal_has_actions(goal, HY_UPGRADE_ALL) instead
 int hy_goal_req_has_upgrade_all(HyGoal goal);
+
 int hy_goal_req_length(HyGoal goal);
 
 /* resolving the goal */

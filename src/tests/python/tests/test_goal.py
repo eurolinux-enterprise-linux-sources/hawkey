@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 from . import base
+from copy import deepcopy
 
 import hawkey
 
@@ -28,6 +29,25 @@ class GoalTest(base.TestCase):
         self.sack = base.TestSack(repo_dir=self.repo_dir)
         self.sack.load_system_repo()
         self.sack.load_test_repo("main", "main.repo")
+
+    def test_actions(self):
+        sltr = hawkey.Selector(self.sack).set(name="walrus")
+        goal = hawkey.Goal(self.sack)
+        self.assertEqual(set(), goal.actions)
+        goal.upgrade(select=sltr)
+        self.assertEqual(set([hawkey.UPGRADE]), goal.actions)
+        goal.install(name="semolina")
+        self.assertEqual(set([hawkey.UPGRADE, hawkey.INSTALL]), goal.actions)
+
+    def test_clone(self):
+        pkg = base.by_name(self.sack, "penny-lib")
+        goal = hawkey.Goal(self.sack)
+        goal.erase(pkg)
+        self.assertFalse(goal.run())
+
+        goal2 = deepcopy(goal)
+        self.assertTrue(goal2.run(allow_uninstall=True))
+        self.assertEqual(len(goal2.list_erasures()), 2)
 
     def test_list_err(self):
         goal = hawkey.Goal(self.sack)
@@ -166,13 +186,27 @@ class GoalRunAll(base.TestCase):
         self.assertTrue(self.goal.run_all(collector.new_solution_cb))
         self.assertItemsEqual(collector.pkgs, [pkg_a, pkg_b, pkg_c])
 
-
     def test_cb_borked(self):
         """ Check exceptions are propagated from the callback. """
         self.goal.install(base.by_name(self.sack, "A"))
         collector = Collector()
         self.assertRaises(AttributeError,
                           self.goal.run_all, collector.new_solution_cb_borked)
+
+    def test_goal_install_weak_deps(self):
+        pkg_b = base.by_name(self.sack, "B")
+        self.goal.install(pkg_b)
+        self.assertTrue(self.goal.run())
+        installs = self.goal.list_installs()
+        self.assertEqual(len(installs), 2)
+        expected_installs = ("B-1-0.noarch", "C-1-0.noarch")
+        self.assertItemsEqual(list(map(str, installs)), expected_installs)
+        goal2 = deepcopy(self.goal)
+        self.assertTrue(goal2.run(ignore_weak_deps=True))
+        installs2 = goal2.list_installs()
+        self.assertEqual(len(goal2.list_installs()), 1)
+        self.assertEqual(str(installs2[0]), "B-1-0.noarch")
+
 
 class Problems(base.TestCase):
     def setUp(self):
